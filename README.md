@@ -1,6 +1,3 @@
-# Path-Correlated-Travel-Time-Discrepancy-and-Joint-Observation-System-Design
-a closed-loop framework that retains a fixed reference velocity model while learning empirical travel-time corrections from independent velocity realizations and observations at known calibration sources.
-
 # Adaptive 2D/3D Observation-System Research Code
 
 This repository contains research code for designing and evaluating adaptive observation systems in two- and three-dimensional velocity models. The workflow covers first-arrival travel-time calculation, receiver and calibration-source selection, source localization, uncertainty calibration, robustness analysis, and localization/migration comparisons.
@@ -201,3 +198,7 @@ Fine-grained controls are defined in `reviewer_analysis_config()` and `robust_cl
 - An unrecognized `MODEL_TYPE` value falls through to the `Anomaly_2D` branch, so the spelling should be checked carefully.
 - The default `quick` profile still contains multiple independent velocity realizations and events. Use `smoke` for a smaller diagnostic run on a resource-constrained machine.
 - Velocity-arrival checkpoints can be reused between runs. Use a separate `OUTPUT_DIR` after changing physical or experimental parameters to avoid mixing incompatible results.
+
+## License
+
+No open-source license has been added automatically. Only the code's rights holder can decide whether and how to license it for third-party use. After ownership is confirmed, an appropriate license such as MIT, BSD-3-Clause, or GPL-3.0 may be added at the repository root.
