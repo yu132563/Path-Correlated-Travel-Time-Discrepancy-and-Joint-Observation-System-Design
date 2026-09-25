@@ -26,6 +26,8 @@ The original implementation is preserved in the single main script:
 ├── README.md                                            # Documentation
 ├── requirements.txt                                     # Main dependencies
 ├── requirements-optional.txt                            # Optional Devito dependency
+├── tests/
+│   └── test_quick.py                                    # Fast, data-free tests
 └── .gitignore
 ```
 
@@ -63,7 +65,11 @@ python -m pip install -r requirements-optional.txt
 
 ## Run the quick tests
 
-The quick tests do not start the full optimization workflow or generate large output files. They import the main module and check:
+Two levels of testing are available.
+
+### Fast, data-free checks
+
+These tests do not start the full optimization workflow or require a velocity file. They import the main module and check:
 
 - expected workflow entry points;
 - travel-time calculation on a small 2D grid;
@@ -78,39 +84,66 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 A successful run executes three tests and ends with `OK`.
 
+### Quick Marmousi workflow test
+
+To test the executable research workflow, place a Marmousi velocity file named `marmousi.bin` in the repository root. The file must contain `681 × 141` native `float32` values in NumPy C order.
+
+The code defaults to `Marmousi_2D`, reads `./marmousi.bin`, and uses `ROBUST_COMPUTE_PROFILE=quick`. The profile is set explicitly below so the selected test scale is visible and reproducible.
+
+Windows PowerShell:
+
+```powershell
+$env:ROBUST_COMPUTE_PROFILE = "quick"
+python .\Final_observation_system_adaptive_2D_3D_complete.py
+```
+
+Linux or macOS:
+
+```bash
+ROBUST_COMPUTE_PROFILE=quick \
+python Final_observation_system_adaptive_2D_3D_complete.py
+```
+
+This integration test writes its results to the default `output_images` directory. It runs the actual Marmousi design and validation workflow and is therefore much slower than the three unit tests.
+
 ## Recommended first run
 
-The program is configured through environment variables rather than command-line arguments. Its default model is `SEAM_3D`, which requires an external `seam.bin` file, and the default robust-analysis profile is computationally expensive.
+The program is configured through environment variables rather than command-line arguments. Its current defaults are:
 
-Start with the built-in `Anomaly_2D` model and the smoke-test profile.
+- `MODEL_TYPE=Marmousi_2D`;
+- `MARMOUSI_VELOCITY_FILE=./marmousi.bin`;
+- `ROBUST_COMPUTE_PROFILE=quick`; and
+- `OUTPUT_DIR=output_images`.
+
+Copy the `681 × 141` float32 Marmousi file to the repository root as `marmousi.bin`, then run the following command. The explicit variables document the experiment and place its products in a dedicated output directory.
 
 ### Windows PowerShell
 
 ```powershell
-$env:MODEL_TYPE = "Anomaly_2D"
-$env:ROBUST_TWIN_TEST_MODE = "1"
-$env:ROBUST_RECEIVER_COUNT = "6"
-$env:RUN_MAIN_MODEL_ADVANTAGE_EVIDENCE = "0"
-$env:RUN_FAST_PSDM = "0"
-$env:MPLBACKEND = "Agg"
-$env:OUTPUT_DIR = "output_images\anomaly_2d_smoke"
+$env:MODEL_TYPE = "Marmousi_2D"
+$env:MARMOUSI_VELOCITY_FILE = ".\marmousi.bin"
+$env:ROBUST_COMPUTE_PROFILE = "quick"
+$env:OUTPUT_DIR = "output_images\marmousi_quick"
 python .\Final_observation_system_adaptive_2D_3D_complete.py
 ```
 
 ### Linux or macOS
 
 ```bash
-MODEL_TYPE=Anomaly_2D \
-ROBUST_TWIN_TEST_MODE=1 \
-ROBUST_RECEIVER_COUNT=6 \
-RUN_MAIN_MODEL_ADVANTAGE_EVIDENCE=0 \
-RUN_FAST_PSDM=0 \
-MPLBACKEND=Agg \
-OUTPUT_DIR=output_images/anomaly_2d_smoke \
+MODEL_TYPE=Marmousi_2D \
+MARMOUSI_VELOCITY_FILE=./marmousi.bin \
+ROBUST_COMPUTE_PROFILE=quick \
+OUTPUT_DIR=output_images/marmousi_quick \
 python Final_observation_system_adaptive_2D_3D_complete.py
 ```
 
-Results are written below `OUTPUT_DIR`. Even the smoke workflow is noticeably slower than the unit tests because it performs receiver design, independent velocity-split generation, localization comparisons, interval calibration, bootstrap analysis, and plotting.
+Because these values match the code defaults except for the dedicated output directory, the minimal equivalent command is simply:
+
+```bash
+python Final_observation_system_adaptive_2D_3D_complete.py
+```
+
+Results are written below `OUTPUT_DIR`. The `quick` profile is a complete research workflow, not a unit-test shortcut: it performs receiver design, independent velocity-split generation, localization comparisons, interval calibration, bootstrap analysis, evidence generation, and plotting.
 
 ## Model selection
 
@@ -120,7 +153,7 @@ Set `MODEL_TYPE` to one of the following values:
 |---|---:|---|---:|
 | `Anomaly_2D` | 2D | Built into the program | `81 × 61` |
 | `Anomaly_3D` | 3D | Built into the program | `41 × 41 × 31` |
-| `Marmousi_2D` | 2D | External float32 binary file | `681 × 141` |
+| `Marmousi_2D` (default) | 2D | External float32 binary file | `681 × 141` |
 | `SEAM_3D` | 3D | External float32 binary file | `50 × 75 × 75` |
 
 ### Marmousi example
@@ -147,10 +180,10 @@ An external velocity file must contain a native `float32` array with exactly the
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `MODEL_TYPE` | `SEAM_3D` | Selects the velocity model |
+| `MODEL_TYPE` | `Marmousi_2D` | Selects the velocity model |
 | `OUTPUT_DIR` | `output_images` | Selects the output directory |
 | `ADD_WELL_SENSORS` | `1` | Enables borehole candidate receivers |
-| `ROBUST_COMPUTE_PROFILE` | `balanced` | Selects `smoke`, `quick`, `balanced`, or `production` |
+| `ROBUST_COMPUTE_PROFILE` | `quick` | Selects `smoke`, `quick`, `balanced`, or `production` |
 | `ROBUST_TWIN_TEST_MODE` | `0` | Forces the smoke profile when set to `1` |
 | `ROBUST_RECEIVER_COUNT` | Calculated internally | Sets the number of deployed receivers |
 | `ROBUST_PARALLEL_WORKERS` | CPU-dependent | Sets the number of velocity-model worker processes |
@@ -160,33 +193,11 @@ An external velocity file must contain a native `float32` array with exactly the
 
 Fine-grained controls are defined in `reviewer_analysis_config()` and `robust_closed_loop_config()` in the main script.
 
-## Standalone demonstration modes
-
-The script provides two additional environment-controlled entry points.
-
-### Robust advantage demonstration
-
-```powershell
-$env:ROBUST_ADVANTAGE_CASE_ONLY = "1"
-$env:ADVANTAGE_CASE_FAST = "1"
-python .\Final_observation_system_adaptive_2D_3D_complete.py
-```
-
-### Localization and migration evidence case
-
-```powershell
-$env:ROBUST_LOCALIZATION_MIGRATION_CASE_ONLY = "1"
-$env:LOCALIZATION_MIGRATION_CASE_FAST = "1"
-python .\Final_observation_system_adaptive_2D_3D_complete.py
-```
-
-These are still research computations and should not be confused with the quick unit tests.
-
 ## Code-analysis notes
 
 - The source is a large, monolithic research script containing more than 300 top-level functions and 10 top-level classes. It is better treated as a reproducible experiment program than as a stable public Python API.
 - Importing the module changes global Matplotlib settings and wraps `Figure.savefig`. Embedding it in another plotting application can therefore affect figures created elsewhere in the same process.
 - Without `scikit-fmm`, travel-time calculation falls back to a homogeneous Euclidean-distance approximation based on the mean velocity. This permits execution but is not scientifically equivalent to the FMM result.
 - An unrecognized `MODEL_TYPE` value falls through to the `Anomaly_2D` branch, so the spelling should be checked carefully.
-- The default `balanced` profile contains many independent velocity realizations and events. Begin with `smoke` or `quick` on shared or resource-constrained machines.
+- The default `quick` profile still contains multiple independent velocity realizations and events. Use `smoke` for a smaller diagnostic run on a resource-constrained machine.
 - Velocity-arrival checkpoints can be reused between runs. Use a separate `OUTPUT_DIR` after changing physical or experimental parameters to avoid mixing incompatible results.
